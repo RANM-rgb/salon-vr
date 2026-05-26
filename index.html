@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Salón VR Shinecon</title>
+  <link rel="icon" href="data:," />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Arial,sans-serif}
+    html,body{width:100%;height:100%;overflow:hidden;background:#050816;color:#fff;touch-action:none}
+    #viewer{position:fixed;inset:0;background:#000}.panel{position:fixed;left:16px;top:16px;z-index:10;width:min(390px,calc(100vw - 32px));padding:14px 16px;border:1px solid rgba(255,255,255,.15);border-radius:18px;background:rgba(2,6,23,.75);backdrop-filter:blur(12px);box-shadow:0 15px 40px rgba(0,0,0,.45)}
+    .panel h1{font-size:18px;margin-bottom:6px;color:#67e8f9}.panel p{font-size:12px;line-height:1.45;color:#dbeafe}.btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}button{border:0;border-radius:999px;padding:10px 13px;background:#2563eb;color:#fff;font-weight:700;box-shadow:0 8px 22px rgba(37,99,235,.35)}button.secondary{background:#0f172a;border:1px solid rgba(255,255,255,.18)}button.danger{background:#dc2626}.hidden{display:none!important}
+    #hud{position:fixed;right:16px;top:16px;z-index:10;padding:10px 12px;border-radius:14px;background:rgba(2,6,23,.65);font-size:12px;color:#e0f2fe;border:1px solid rgba(255,255,255,.12)}#crosshair{position:fixed;left:50%;top:50%;z-index:8;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none;border:2px solid rgba(255,255,255,.75);border-radius:50%;box-shadow:0 0 12px rgba(103,232,249,.8)}
+    .controls{position:fixed;inset:auto 0 22px 0;z-index:11;display:flex;justify-content:space-between;align-items:end;padding:0 22px;pointer-events:none}.pad,.look{display:grid;gap:8px;pointer-events:auto}.pad{grid-template-columns:58px 58px 58px;grid-template-rows:58px 58px}.pad button,.look button{width:58px;height:58px;border-radius:18px;background:rgba(15,23,42,.72);border:1px solid rgba(255,255,255,.18);font-size:20px}.pad .up{grid-column:2}.pad .left{grid-column:1;grid-row:2}.pad .down{grid-column:2;grid-row:2}.pad .right{grid-column:3;grid-row:2}.look{grid-template-columns:58px 58px}
+    .loading{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at top,#1e293b,#020617);gap:14px;text-align:center}.loader{width:58px;height:58px;border:5px solid rgba(255,255,255,.2);border-top-color:#67e8f9;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:700px){#hud{display:none}.panel h1{font-size:16px}.controls{padding:0 12px}.pad button,.look button{width:52px;height:52px}.pad{grid-template-columns:52px 52px 52px;grid-template-rows:52px 52px}}
+  </style>
+</head>
+<body>
+  <div id="viewer"></div><div id="loading" class="loading"><div class="loader"></div><h2>Cargando salón...</h2><p>Es normal que tarde por el archivo .dae.</p></div>
+  <div class="panel" id="panel"><h1>Salón VR Shinecon</h1><p>Ahora las texturas faltantes se reemplazan por una textura gris para evitar errores 404. En celular toca <b>Activar VR Shinecon</b>, gira horizontal y colócalo en los lentes.</p><div class="btns"><button id="btnVR">Activar VR Shinecon</button><button id="btnNormal" class="secondary">Vista normal</button><button id="btnReset" class="secondary">Recentrar</button><button id="btnPanel" class="danger">Ocultar panel</button></div></div>
+  <div id="hud">WASD: mover | Mouse: mirar | VR: orientación del celular</div><div id="crosshair"></div>
+  <div class="controls"><div class="pad"><button class="up" data-key="KeyW">▲</button><button class="left" data-key="KeyA">◀</button><button class="down" data-key="KeyS">▼</button><button class="right" data-key="KeyD">▶</button></div><div class="look"><button data-key="ArrowLeft">↺</button><button data-key="ArrowRight">↻</button></div></div>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { StereoEffect } from 'three/addons/effects/StereoEffect.js';
+
+    const loading=document.getElementById('loading'), panel=document.getElementById('panel');
+    const scene=new THREE.Scene(); scene.background=new THREE.Color(0x88ccee); scene.fog=new THREE.Fog(0x88ccee,35,280);
+    const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.05,2000); camera.rotation.order='YXZ';
+    const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.shadowMap.enabled=true; document.getElementById('viewer').appendChild(renderer.domElement);
+    const stereo=new StereoEffect(renderer); stereo.setSize(innerWidth,innerHeight); stereo.eyeSeparation=.064;
+    const orbit=new OrbitControls(camera,renderer.domElement); orbit.enableDamping=true;
+    scene.add(new THREE.HemisphereLight(0xffffff,0x334155,2.5)); const sun=new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(20,40,25); scene.add(sun);
+    const floor=new THREE.Mesh(new THREE.CircleGeometry(160,96),new THREE.MeshStandardMaterial({color:0x263244,roughness:.9})); floor.rotation.x=-Math.PI/2; floor.position.y=-.02; scene.add(floor);
+
+    let vrMode=false, orientationEnabled=false, yaw=0, pitch=0, lastOrientation=null; const keys={};
+    const manager=new THREE.LoadingManager();
+    manager.setURLModifier((url)=>{ if(/\.(jpg|jpeg|png)$/i.test(url)) return './assets/textures/placeholder.jpg'; return url; });
+    const loader=new ColladaLoader(manager);
+    loader.load('./assets/models/salony8.dae',(collada)=>{
+      const model=collada.scene;
+      model.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; if(o.material){ const arr=Array.isArray(o.material)?o.material:[o.material]; arr.forEach(m=>{m.side=THREE.DoubleSide; m.needsUpdate=true;}); } } });
+      scene.add(model);
+      model.updateMatrixWorld(true);
+      let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3(), center=new THREE.Vector3(); box.getSize(size); box.getCenter(center);
+      const maxDim=Math.max(size.x,size.y,size.z); const s=maxDim>0?32/maxDim:1; model.scale.multiplyScalar(s);
+      model.updateMatrixWorld(true); box=new THREE.Box3().setFromObject(model); box.getSize(size); box.getCenter(center);
+      model.position.x-=center.x; model.position.z-=center.z; model.position.y-=box.min.y;
+      model.updateMatrixWorld(true);
+      resetCamera(); loading.style.display='none';
+    },undefined,(e)=>{console.error(e); loading.innerHTML='<h2>No se pudo cargar</h2><p>Revisa que assets/models/salony8.dae exista.</p>';});
+
+    function resetCamera(){ camera.position.set(0,1.65,8); yaw=Math.PI; pitch=0; camera.rotation.set(0,yaw,0); orbit.target.set(0,1.5,0); orbit.update(); }
+    addEventListener('keydown',e=>keys[e.code]=true); addEventListener('keyup',e=>keys[e.code]=false);
+    document.querySelectorAll('[data-key]').forEach(b=>{const c=b.dataset.key; const on=e=>{e.preventDefault();keys[c]=true}, off=e=>{e.preventDefault();keys[c]=false}; ['touchstart','mousedown'].forEach(x=>b.addEventListener(x,on)); ['touchend','mouseup','mouseleave'].forEach(x=>b.addEventListener(x,off));});
+    renderer.domElement.addEventListener('click',()=>{ if(!vrMode) renderer.domElement.requestPointerLock?.(); });
+    addEventListener('mousemove',e=>{ if(document.pointerLockElement===renderer.domElement&&!vrMode){ yaw-=e.movementX*.0025; pitch-=e.movementY*.0025; pitch=Math.max(-1.2,Math.min(1.2,pitch)); camera.rotation.set(pitch,yaw,0); }});
+    async function activateVR(){ vrMode=true; orbit.enabled=false; panel.classList.add('hidden'); document.getElementById('crosshair').classList.add('hidden'); await document.documentElement.requestFullscreen?.().catch(()=>{}); if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function') await DeviceOrientationEvent.requestPermission().catch(()=>{}); orientationEnabled=true; resize(); }
+    function normalView(){ vrMode=false; orbit.enabled=true; orientationEnabled=false; panel.classList.remove('hidden'); document.getElementById('crosshair').classList.remove('hidden'); document.exitFullscreen?.(); resize(); }
+    document.getElementById('btnVR').onclick=activateVR; document.getElementById('btnNormal').onclick=normalView; document.getElementById('btnReset').onclick=resetCamera; document.getElementById('btnPanel').onclick=()=>panel.classList.toggle('hidden');
+    function move(delta){ const speed=(keys.ShiftLeft?5:2.6)*delta; const f=new THREE.Vector3(); camera.getWorldDirection(f); f.y=0; f.normalize(); const r=new THREE.Vector3().crossVectors(f,camera.up).normalize(); if(keys.KeyW)camera.position.addScaledVector(f,speed); if(keys.KeyS)camera.position.addScaledVector(f,-speed); if(keys.KeyA)camera.position.addScaledVector(r,-speed); if(keys.KeyD)camera.position.addScaledVector(r,speed); if(keys.ArrowLeft){yaw+=1.8*delta;camera.rotation.y=yaw} if(keys.ArrowRight){yaw-=1.8*delta;camera.rotation.y=yaw} camera.position.y=1.65; camera.position.x=THREE.MathUtils.clamp(camera.position.x,-40,40); camera.position.z=THREE.MathUtils.clamp(camera.position.z,-40,40); }
+    const deg=THREE.MathUtils.degToRad, eq=new THREE.Euler(0,0,0,'YXZ'), q=new THREE.Quaternion(), sq=new THREE.Quaternion(), cq=new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2,0,0));
+    window.addEventListener('deviceorientation',e=>lastOrientation=e,true);
+    function updateOrientation(){ if(!orientationEnabled||!lastOrientation)return; const a=deg(lastOrientation.alpha||0), b=deg(lastOrientation.beta||0), g=deg(lastOrientation.gamma||0), o=deg(screen.orientation?.angle||window.orientation||0); eq.set(b,a,-g,'YXZ'); q.setFromEuler(eq); sq.setFromAxisAngle(new THREE.Vector3(0,0,1),-o); camera.quaternion.copy(q).multiply(cq).multiply(sq); }
+    const clock=new THREE.Clock(); function animate(){ const d=Math.min(clock.getDelta(),.05); move(d); if(vrMode){ updateOrientation(); stereo.render(scene,camera); } else { orbit.update(); renderer.render(scene,camera); }} renderer.setAnimationLoop(animate);
+    function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); stereo.setSize(innerWidth,innerHeight);} addEventListener('resize',resize); addEventListener('orientationchange',()=>setTimeout(resize,300));
+  </script>
+</body>
+</html>
