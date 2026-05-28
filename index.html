@@ -179,7 +179,7 @@
     const loader = new ColladaLoader(manager);
 
     loader.load(
-      './assets/models/salony8.dae',
+      './assets/models/salon.dae',
 
       (collada) => {
         const model = collada.scene;
@@ -242,7 +242,7 @@
 
         loading.innerHTML = `
           <h2>No se pudo cargar</h2>
-          <p>Revisa que assets/models/salony8.dae exista.</p>
+          <p>Revisa que assets/models/salon.dae exista.</p>
         `;
       }
     );
